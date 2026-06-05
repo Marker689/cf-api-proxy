@@ -16,7 +16,7 @@ const SERVICES = {
       if (botMatch) return { token: botMatch[1], method: botMatch[2], file: false };
 
       // File downloads
-      const fileMatch = pathname.match(/^\/file\/bot\/(\d+:.+?)\/(.+)/);
+      const fileMatch = pathname.match(/^\/file\/bot\/?(\d+:.+?)\/(.+)/);
       if (fileMatch) return { token: fileMatch[1], method: fileMatch[2], file: true };
 
       return null;
