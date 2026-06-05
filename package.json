@@ -1,0 +1,6 @@
+{
+  "name": "cf-api-proxy",
+  "version": "1.0.0",
+  "description": "Telegram & Discord API proxy via Cloudflare Pages Functions",
+  "private": true
+}
