@@ -11,7 +11,7 @@ const SERVICES = {
     // /bot{TOKEN}/{method}  →  https://api.telegram.org/bot{TOKEN}/{method}
     match: (pathname) => {
       // Handles both: /bot{TOKEN}/{method} and /bot/bot{TOKEN}/{method}
-      const m = pathname.match(/^\/bot\/?bot\/?(\d+:[\w-]+)\/(.+)/);
+      const m = pathname.match(/^\/bot\/?bot\/?(\d+:.+?)\/(.+)/);
       return m ? { token: m[1], method: m[2] } : null;
     },
     upstream: (params, url) => {
