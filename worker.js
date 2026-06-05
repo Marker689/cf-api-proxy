@@ -279,16 +279,26 @@ export default {
 
 /**
  * Telegram Bot API Proxy
+ * Accepts both formats:
+ *   GET /api/tg/{method}?bot_token=TOKEN    (query param)
+ *   GET /api/tg/bot{TOKEN}/{method}         (standard Bot API path)
  */
 async function handleTelegram(request, pathParts) {
   const url = new URL(request.url);
-  const token = url.searchParams.get('bot_token');
+  let token = url.searchParams.get('bot_token');
+  let methodParts = pathParts;
+
+  // If no token in query, try standard /bot{TOKEN}/{method} path format
+  if (!token && pathParts.length > 0 && pathParts[0].toLowerCase() === 'bot') {
+    token = pathParts[1];
+    methodParts = pathParts.slice(2);
+  }
 
   if (!token) {
     return jsonResp({ ok: false, error_code: 401, description: 'Missing bot_token' }, 401);
   }
 
-  if (pathParts.length === 0) {
+  if (methodParts.length === 0) {
     return jsonResp({
       ok: false, error_code: 400,
       description: 'Missing method. Examples: getMe, sendMessage, sendPhoto, getFile',
@@ -296,12 +306,12 @@ async function handleTelegram(request, pathParts) {
   }
 
   // File download: /api/tg/file/FILE_ID
-  if (pathParts[0] === 'file') {
-    const fileId = pathParts.slice(1).join('/');
+  if (methodParts[0] === 'file') {
+    const fileId = methodParts.slice(1).join('/');
     return handleTelegramFile(token, fileId);
   }
 
-  const method = pathParts.join('/');
+  const method = methodParts.join('/');
   const baseUrl = `${TG_API}/bot${token}/${method}`;
   const tgUrl = buildUpstreamUrl(baseUrl, request.url);
 
