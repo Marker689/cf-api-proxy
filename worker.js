@@ -130,7 +130,11 @@ const HTML_PAGE = `<!DOCTYPE html>
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const pathname = url.pathname;
+    // URL-decode the path for regex matching:
+    // PTB's _get_encoded_url() encodes ':' as '%3A', which breaks our
+    // regex that expects a literal ':' in the bot token.
+    let pathname = url.pathname;
+    try { pathname = decodeURIComponent(pathname); } catch (_) { /* keep raw */ }
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
