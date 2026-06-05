@@ -6,6 +6,170 @@
 const TG_API = 'https://api.telegram.org';
 const DISCORD_API = 'https://discord.com/api/v10';
 
+const HTML_PAGE = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare API Proxy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .logo-icon {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #f97316, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: #22c55e;
+      margin-bottom: 2rem;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, #a0a0a0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    .cards {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #151520;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 320px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: #3a3a5a; }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .card-icon { font-size: 1.5rem; }
+    .card-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .card-desc {
+      color: #888;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .card-examples {
+      background: #0d0d15;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.8rem;
+      color: #6ee7b7;
+      line-height: 1.8;
+    }
+    .footer {
+      color: #555;
+      font-size: 0.8rem;
+    }
+    .footer a {
+      color: #6ee7b7;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <span class="logo-text">API Proxy</span>
+  </div>
+  <div class="status">
+    <span class="status-dot"></span>
+    Online
+  </div>
+  <h1>Cloudflare API Proxy</h1>
+  <p class="subtitle">Telegram & Discord API через Cloudflare Workers</p>
+  <div class="cards">
+    <div class="card telegram">
+      <div class="card-header">
+        <div class="card-icon">✈️</div>
+        <span class="card-title">Telegram Bot API</span>
+      </div>
+      <p class="card-desc">Все методы бота: отправка сообщений, фото, файлов, getMe и другие</p>
+      <div class="card-examples">
+        <code>/api/tg/getMe?bot_token=TOKEN</code><br>
+        <code>/api/tg/sendMessage?bot_token=TOKEN</code>
+      </div>
+    </div>
+    <div class="card discord">
+      <div class="card-header">
+        <div class="card-icon">🎮</div>
+        <span class="card-title">Discord API</span>
+      </div>
+      <p class="card-desc">REST API Discord: каналы, сообщения, серверы, пользователи</p>
+      <div class="card-examples">
+        <code>/api/dc/users/@me?token=TOKEN</code><br>
+        <code>/api/dc/channels/ID/messages?token=TOKEN</code>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    Powered by <a href="https://cloudflare.com" target="_blank">Cloudflare Workers</a> ·
+    <a href="https://github.com/Marker689/cf-api-proxy" target="_blank">GitHub</a>
+  </div>
+</body>
+</html>`;
+
 export default {
   async fetch(request, env, ctx) {
     // CORS preflight
@@ -24,6 +188,16 @@ export default {
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
 
+    // Root — serve landing page
+    if (pathParts.length === 0 || (pathParts.length === 1 && pathParts[0] === '')) {
+      return new Response(HTML_PAGE, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
     // Route: /api/tg/...
     if (pathParts[0] === 'api' && pathParts[1] === 'tg') {
       return handleTelegram(request, pathParts.slice(2));
@@ -34,11 +208,11 @@ export default {
       return handleDiscord(request, pathParts.slice(2));
     }
 
-    // Root
-    return new Response(
-      'Cloudflare API Proxy\n\nEndpoints:\n  /api/tg/<method>?bot_token=TOKEN\n  /api/dc/<endpoint>?token=TOKEN',
-      { headers: { 'Content-Type': 'text/plain' } }
-    );
+    // 404
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 };
 
