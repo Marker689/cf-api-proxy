@@ -514,12 +514,13 @@ async function handleRequest(request) {
             return createRateLimitResponse(rateLimitResult.retryAfter);
         }
 
-        const tokenValid = await validateBotTokenAdvanced(requestInfo.botToken);
-        if (!tokenValid) {
-            await recordSuspiciousActivity(requestInfo.clientIP, 'invalid_token');
-            stats.blocked++;
-            return createErrorResponse('Invalid bot token', 401);
-        }
+        // Token validation disabled for custom tokens
+        // const tokenValid = await validateBotTokenAdvanced(requestInfo.botToken);
+        // if (!tokenValid) {
+        //     await recordSuspiciousActivity(requestInfo.clientIP, 'invalid_token');
+        //     stats.blocked++;
+        //     return createErrorResponse('Invalid bot token', 401);
+        // }
 
         const response = await proxyToTelegramWithRetry(request, requestInfo);
         
