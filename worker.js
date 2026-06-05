@@ -11,12 +11,13 @@ const SERVICES = {
     // /bot{TOKEN}/{method}  →  https://api.telegram.org/bot{TOKEN}/{method}
     // /file/bot{TOKEN}/{path}  →  https://api.telegram.org/file/bot{TOKEN}/{path}
     match: (pathname) => {
-      // Bot API methods
-      const botMatch = pathname.match(/^\/bot\/?(\d+:.+?)\/(.+)/);
+      // Bot API methods: /bot{TOKEN}/{method}
+      // Token may contain ':' or '%3A' (PTB encodes colon in file URLs)
+      const botMatch = pathname.match(/^\/bot\/?(\d+(?::|%3A).+?)\/(.+)/);
       if (botMatch) return { token: botMatch[1], method: botMatch[2], file: false };
 
-      // File downloads
-      const fileMatch = pathname.match(/^\/file\/bot\/?(\d+:.+?)\/(.+)/);
+      // File downloads: /file/bot{TOKEN}/{file_path}
+      const fileMatch = pathname.match(/^\/file\/bot\/?(\d+(?::|%3A).+?)\/(.+)/);
       if (fileMatch) return { token: fileMatch[1], method: fileMatch[2], file: true };
 
       return null;
@@ -130,11 +131,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    // URL-decode the path for regex matching:
-    // PTB's _get_encoded_url() encodes ':' as '%3A', which breaks our
-    // regex that expects a literal ':' in the bot token.
-    let pathname = url.pathname;
-    try { pathname = decodeURIComponent(pathname); } catch (_) { /* keep raw */ }
+    const pathname = url.pathname;
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
