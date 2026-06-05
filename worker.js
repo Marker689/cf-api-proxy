@@ -170,6 +170,67 @@ const HTML_PAGE = `<!DOCTYPE html>
 </body>
 </html>`;
 
+/**
+ * Proxy-specific query params that should NOT be forwarded upstream
+ */
+const PROXY_PARAMS = new Set(['bot_token', 'token', 'auth_prefix']);
+
+/**
+ * Build upstream URL preserving all original query params
+ * (except proxy-specific ones like bot_token, token)
+ */
+function buildUpstreamUrl(baseUrl, originalUrl) {
+  const orig = new URL(originalUrl);
+  const upstream = new URL(baseUrl);
+
+  // Forward all query params except proxy-specific ones
+  for (const [key, value] of orig.searchParams.entries()) {
+    if (!PROXY_PARAMS.has(key)) {
+      upstream.searchParams.append(key, value);
+    }
+  }
+
+  return upstream.toString();
+}
+
+/**
+ * Read request body, respecting content type
+ * Returns { body: ArrayBuffer | undefined, contentType: string }
+ */
+async function readBody(request) {
+  const ct = request.headers.get('content-type') || '';
+  const method = request.method.toUpperCase();
+
+  // No body for GET, HEAD, DELETE (typically)
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    return { body: undefined, contentType: ct };
+  }
+
+  // Check if it's multipart/form-data — forward as raw bytes
+  if (ct.includes('multipart/form-data')) {
+    return {
+      body: await request.arrayBuffer(),
+      contentType: ct,
+    };
+  }
+
+  // JSON or text — parse then re-stringify
+  if (ct.includes('application/json')) {
+    try {
+      const json = await request.json();
+      return { body: JSON.stringify(json), contentType: ct };
+    } catch {
+      // Fallback: read as text
+      const text = await request.text();
+      return { body: text, contentType: ct };
+    }
+  }
+
+  // Everything else: raw text
+  const text = await request.text();
+  return { body: text, contentType: ct };
+}
+
 export default {
   async fetch(request, env, ctx) {
     // CORS preflight
@@ -179,7 +240,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
           'Access-Control-Max-Age': '86400',
         },
       });
@@ -241,19 +302,16 @@ async function handleTelegram(request, pathParts) {
   }
 
   const method = pathParts.join('/');
-  const tgUrl = `${TG_API}/bot${token}/${method}`;
+  const baseUrl = `${TG_API}/bot${token}/${method}`;
+  const tgUrl = buildUpstreamUrl(baseUrl, request.url);
 
-  let body;
-  if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
-    const ct = request.headers.get('content-type') || '';
-    body = ct.includes('application/json') ? await request.json() : await request.text();
-  }
+  const { body, contentType } = await readBody(request);
 
   try {
     const res = await fetch(tgUrl, {
       method: request.method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
+      headers: { 'Content-Type': contentType },
+      body: body || undefined,
     });
     const data = await res.json();
     return jsonResp(data, res.status);
@@ -303,6 +361,7 @@ async function handleTelegramFile(token, fileId) {
 async function handleDiscord(request, pathParts) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
+  const authPrefix = url.searchParams.get('auth_prefix') || 'Bot';
 
   if (!token) {
     return jsonResp({ error: 'Missing token' }, 401);
@@ -313,24 +372,21 @@ async function handleDiscord(request, pathParts) {
   }
 
   const endpoint = pathParts.join('/');
-  const dcUrl = `${DISCORD_API}/${endpoint}`;
+  const baseUrl = `${DISCORD_API}/${endpoint}`;
+  const dcUrl = buildUpstreamUrl(baseUrl, request.url);
+
+  const { body, contentType } = await readBody(request);
 
   const headers = new Headers({
-    'Authorization': `Bot ${token}`,
-    'Content-Type': 'application/json',
+    'Authorization': `${authPrefix} ${token}`,
+    'Content-Type': contentType,
   });
-
-  let body;
-  if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
-    const ct = request.headers.get('content-type') || '';
-    body = ct.includes('application/json') ? await request.json() : await request.text();
-  }
 
   try {
     const res = await fetch(dcUrl, {
       method: request.method,
       headers,
-      body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+      body: body || undefined,
     });
 
     const resHeaders = new Headers(res.headers);

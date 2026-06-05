@@ -12,13 +12,8 @@
 ## Структура
 
 ```
-├── functions/
-│   └── api/
-│       ├── tg/
-│       │   └── [...path].js    # Telegram Bot API proxy
-│       └── dc/
-│           └── [...path].js    # Discord REST API proxy
-├── wrangler.toml
+├── worker.js          # Единый entry-point с маршрутизацией
+├── wrangler.toml      # Конфиг Cloudflare Workers
 ├── package.json
 └── README.md
 ```
@@ -43,8 +38,11 @@ curl -o photo.jpg "https://your-domain.com/api/tg/file/FILE_ID?bot_token=YOUR_TO
 ### Discord API
 
 ```bash
-# Получить инфо о боте
+# Получить инфо о боте (bot token)
 curl "https://your-domain.com/api/dc/users/@me?token=YOUR_TOKEN"
+
+# Получить инфо о юзере (user OAuth2 token)
+curl "https://your-domain.com/api/dc/users/@me?token=YOUR_TOKEN&auth_prefix=Bearer"
 
 # Получить каналы
 curl "https://your-domain.com/api/dc/guilds/GUILD_ID/channels?token=YOUR_TOKEN"
@@ -54,6 +52,8 @@ curl -X POST "https://your-domain.com/api/dc/channels/CHANNEL_ID/messages?token=
   -H "Content-Type: application/json" \
   -d '{"content":"Hello from proxy!"}'
 ```
+
+> **auth_prefix** — префикс авторизации Discord. По умолчанию `Bot` (для бот-токенов). Для user OAuth2 токенов передай `auth_prefix=Bearer`.
 
 ### Python
 
