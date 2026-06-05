@@ -12,7 +12,7 @@ const SERVICES = {
     // /file/bot{TOKEN}/{path}  →  https://api.telegram.org/file/bot{TOKEN}/{path}
     match: (pathname) => {
       // Bot API methods
-      const botMatch = pathname.match(/^\/bot\/(\d+:.+?)\/(.+)/);
+      const botMatch = pathname.match(/^\/bot\/?(\d+:.+?)\/(.+)/);
       if (botMatch) return { token: botMatch[1], method: botMatch[2], file: false };
 
       // File downloads
