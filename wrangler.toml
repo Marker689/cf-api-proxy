@@ -1,6 +1,5 @@
-[build]
-command = "echo 'No build needed'"
-output_dir = "."
+name = "cf-api-proxy"
+compatibility_date = "2024-01-01"
 
-[functions]
-directory = "functions"
+[vars]
+# Можно добавить переменные окружения
