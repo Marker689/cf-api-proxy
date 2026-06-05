@@ -55,6 +55,16 @@ curl -X POST "https://your-domain.com/api/dc/channels/CHANNEL_ID/messages?token=
 
 > **auth_prefix** — префикс авторизации Discord. По умолчанию `Bot` (для бот-токенов). Для user OAuth2 токенов передай `auth_prefix=Bearer`.
 
+## Прозрачность прокси
+
+Проксирует запросы «как есть» — не зависит от методов конечного эндпоинта:
+
+- **Query params** — все параметры кроме `bot_token`/`token`/`auth_prefix` пробрасываются наверх (`getUpdates?offset=0&limit=100`)
+- **Content-Type** — не форсирует `application/json`, передаёт оригинальный заголовок
+- **Multipart/form-data** — тело проксируется как raw bytes (sendPhoto, sendDocument, uploadStickerFile)
+- **HTTP методы** — GET, POST, PUT, DELETE, PATCH — всё форвардится
+- **Discord auth** — `Bot` по дефолту, `Bearer` через `auth_prefix=Bearer`
+
 ### Python
 
 ```python
