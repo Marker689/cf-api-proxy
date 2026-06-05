@@ -26,6 +26,7 @@ const SERVICES = {
 
   discord: {
     // /dc/{endpoint}  →  https://discord.com/api/v10/{endpoint}
+    // Token via: ?token=TOKEN (query param) or Authorization header
     match: (pathname) => {
       const m = pathname.match(/^\/dc\/(.+)/);
       return m ? { endpoint: m[1] } : null;
@@ -37,7 +38,12 @@ const SERVICES = {
       }
       return u.toString();
     },
-    headers: (params, url) => {
+    headers: (params, url, reqHeaders) => {
+      // If Authorization already set (e.g. by Hermes), pass it through
+      if (reqHeaders.has('Authorization') || reqHeaders.has('authorization')) {
+        return null;
+      }
+      // Otherwise, accept token from query param
       const token = url.searchParams.get('token');
       const prefix = url.searchParams.get('auth_prefix') || 'Bot';
       return token ? { 'Authorization': `${prefix} ${token}` } : null;
@@ -162,7 +168,7 @@ async function proxyRequest(request, svc, params, url) {
   stripHeaders(reqHeaders);
 
   // Service-specific auth headers
-  const authHeaders = svc.headers ? svc.headers(params, url) : null;
+  const authHeaders = svc.headers ? svc.headers(params, url, reqHeaders) : null;
   if (authHeaders) {
     for (const [k, v] of Object.entries(authHeaders)) {
       reqHeaders.set(k, v);
