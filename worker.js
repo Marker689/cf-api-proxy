@@ -9,13 +9,23 @@
 const SERVICES = {
   telegram: {
     // /bot{TOKEN}/{method}  →  https://api.telegram.org/bot{TOKEN}/{method}
+    // /file/bot{TOKEN}/{path}  →  https://api.telegram.org/file/bot{TOKEN}/{path}
     match: (pathname) => {
-      // Handles: /bot{TOKEN}/{method}  and  /bot/bot{TOKEN}/{method}
-      const m = pathname.match(/^\/bot\/?(\d+:.+?)\/(.+)/);
-      return m ? { token: m[1], method: m[2] } : null;
+      // Bot API methods
+      const botMatch = pathname.match(/^\/bot\/(\d+:.+?)\/(.+)/);
+      if (botMatch) return { token: botMatch[1], method: botMatch[2], file: false };
+
+      // File downloads
+      const fileMatch = pathname.match(/^\/file\/bot\/(\d+:.+?)\/(.+)/);
+      if (fileMatch) return { token: fileMatch[1], method: fileMatch[2], file: true };
+
+      return null;
     },
     upstream: (params, url) => {
-      const u = new URL(`https://api.telegram.org/bot${params.token}/${params.method}`);
+      const base = params.file
+        ? `https://api.telegram.org/file/bot${params.token}`
+        : `https://api.telegram.org/bot${params.token}`;
+      const u = new URL(`${base}/${params.method}`);
       // Forward all query params (Hermes may add its own, ignore proxy ones)
       for (const [k, v] of url.searchParams) {
         if (!['bot_token'].includes(k)) u.searchParams.append(k, v);
