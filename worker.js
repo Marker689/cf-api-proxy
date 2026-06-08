@@ -12,12 +12,14 @@ const SERVICES = {
     // /file/bot{TOKEN}/{path}  →  https://api.telegram.org/file/bot{TOKEN}/{path}
     match: (pathname) => {
       // Bot API methods: /bot{TOKEN}/{method}
+      // Also handles PTB double-bot: /bot/bot{TOKEN}/{method} (when base_url ends with /bot)
       // Token may contain ':' or '%3A' (PTB encodes colon in file URLs)
-      const botMatch = pathname.match(/^\/bot\/?(\d+(?::|%3A).+?)\/(.+)/);
+      const botMatch = pathname.match(/^\/bot\/?(?:bot\/)?(\d+(?::|%3A).+?)\/(.+)/);
       if (botMatch) return { token: botMatch[1], method: botMatch[2], file: false };
 
       // File downloads: /file/bot{TOKEN}/{file_path}
-      const fileMatch = pathname.match(/^\/file\/bot\/?(\d+(?::|%3A).+?)\/(.+)/);
+      // Also handles PTB double-bot: /file/bot/bot{TOKEN}/{file_path}
+      const fileMatch = pathname.match(/^\/file\/bot\/?(?:bot\/)?(\d+(?::|%3A).+?)\/(.+)/);
       if (fileMatch) return { token: fileMatch[1], method: fileMatch[2], file: true };
 
       return null;
