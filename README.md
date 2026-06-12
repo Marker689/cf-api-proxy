@@ -17,40 +17,44 @@ Extensible — add new services in `SERVICES` config inside `worker.js`.
 
 ```bash
 # Get bot info
-curl "https://your-domain.com/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/getMe"
+curl "https://api-proxy.kharitonov.su/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/getMe"
 
 # Send message
-curl -X POST "https://your-domain.com/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/sendMessage" \
+curl -X POST "https://api-proxy.kharitonov.su/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/sendMessage" \
   -H "Content-Type: application/json" \
   -d '{"chat_id": 123456, "text": "Hello"}'
+
+# Download file (getFile returns file_path, then fetch via /file route)
+curl "https://api-proxy.kharitonov.su/file/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/files/file.jpg"
 ```
 
 ### Discord REST API
 
 ```bash
 # Get current user
-curl "https://your-domain.com/dc/users/@me?token=DISCORD_TOKEN"
+curl "https://api-proxy.kharitonov.su/dc/users/@me?token=DISCORD_TOKEN"
 
 # Get channel messages
-curl "https://your-domain.com/dc/channels/CHANNEL_ID/messages?token=DISCORD_TOKEN"
+curl "https://api-proxy.kharitonov.su/dc/channels/CHANNEL_ID/messages?token=DISCORD_TOKEN"
 
 # Send message (Bot token)
-curl -X POST "https://your-domain.com/dc/channels/CHANNEL_ID/messages?token=BOT_TOKEN" \
+curl -X POST "https://api-proxy.kharitonov.su/dc/channels/CHANNEL_ID/messages?token=BOT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello from proxy!"}'
 
 # User token (prefix: "Bearer")
-curl "https://your-domain.com/dc/users/@me?token=USER_TOKEN&auth_prefix=Bearer"
+curl "https://api-proxy.kharitonov.su/dc/users/@me?token=USER_TOKEN&auth_prefix=Bearer"
 ```
 
 ## Hermes Agent config
 
 ```bash
 # Telegram
-hermes config set platforms.telegram.extra.base_url "https://your-domain.com/bot"
+hermes config set platforms.telegram.extra.base_url "https://api-proxy.kharitonov.su/bot"
+hermes config set platforms.telegram.extra.base_file_url "https://api-proxy.kharitonov.su/file/bot"
 
-# Discord (if supported by Hermes platform adapter)
-hermes config set platforms.discord.extra.base_url "https://your-domain.com/dc"
+# Discord
+hermes config set platforms.discord.extra.base_url "https://api-proxy.kharitonov.su/dc"
 ```
 
 ## Deploy
