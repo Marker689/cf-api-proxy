@@ -1,6 +1,16 @@
 {
   "name": "cf-api-proxy",
   "version": "1.0.0",
-  "description": "Telegram & Discord API proxy via Cloudflare Pages Functions",
-  "private": true
+  "description": "Transparent proxy for Telegram, Discord, Anthropic & OpenAI APIs via Cloudflare Workers",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "wrangler": "^4.118.0"
+  }
 }

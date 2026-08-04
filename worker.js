@@ -5,8 +5,45 @@
  */
 
 // ── Service Definitions (extensible) ──────────────────────────────────
+//
+// Transparent proxy: a service maps a URL prefix to an upstream base and
+// forward the path, method, headers, and body VOERBATIM. No per-method logic —
+// if the upstream adds/changes an endpoint, the proxy keeps working untouched.
+//
+// Two ways to declare a service:
+//   1. forward({ prefix, upstream, stripQuery, defaultHeaders }) — generic,
+//      the common case. Adding a service = adding one entry.
+//   2. A custom object { match, upstream, headers } — for services with
+//      non-trivial mapping (Telegram embeds the token in the path).
+
+function forward({ prefix, upstream, stripQuery = [], defaultHeaders = {} }) {
+  return {
+    match: (pathname) => {
+      if (pathname === prefix) return { suffix: '' };
+      const m = pathname.match(new RegExp('^' + prefix + '/(.*)'));
+      return m ? { suffix: m[1] } : null;
+    },
+    upstream: (params, url) => {
+      const suffix = params.suffix ? '/' + params.suffix : '';
+      const u = new URL(upstream + suffix);
+      for (const [k, v] of url.searchParams) {
+        if (!stripQuery.includes(k)) u.searchParams.append(k, v);
+      }
+      return u.toString();
+    },
+    headers: (params, url, reqHeaders) => {
+      const add = {};
+      for (const [k, v] of Object.entries(defaultHeaders)) {
+        if (!reqHeaders.has(k)) add[k] = v;
+      }
+      return Object.keys(add).length ? add : null;
+    },
+  };
+}
 
 const SERVICES = {
+  // Telegram: the token lives in the URL path (SDK-native), so it needs a
+  // custom matcher. Everything else is unchanged from upstream semantics.
   telegram: {
     // /bot{TOKEN}/{method}  →  https://api.telegram.org/bot{TOKEN}/{method}
     // /file/bot{TOKEN}/{path}  →  https://api.telegram.org/file/bot{TOKEN}/{path}
@@ -37,12 +74,13 @@ const SERVICES = {
       }
       return u.toString();
     },
-    headers: (params, request) => null, // token is in URL
+    headers: () => null, // token is in URL
   },
 
+  // Discord: client sends `Authorization` header. `?token=`/`?auth_prefix=`
+  // are a convenience that gets translated into the same header.
   discord: {
     // /dc/{endpoint}  →  https://discord.com/api/v10/{endpoint}
-    // Token via: ?token=TOKEN (query param) or Authorization header
     match: (pathname) => {
       const m = pathname.match(/^\/dc\/(.+)/);
       return m ? { endpoint: m[1] } : null;
@@ -65,6 +103,20 @@ const SERVICES = {
       return token ? { 'Authorization': `${prefix} ${token}` } : null;
     },
   },
+
+  // Anthropic: client sends `x-api-key` (or `Authorization: Bearer`). The
+  // proxy only ensures the required `anthropic-version` header is present.
+  anthropic: forward({
+    prefix: '/claude',
+    upstream: 'https://api.anthropic.com/v1',
+    defaultHeaders: { 'anthropic-version': '2023-06-01' },
+  }),
+
+  // OpenAI: client sends `Authorization: Bearer`. Fully transparent.
+  openai: forward({
+    prefix: '/openai',
+    upstream: 'https://api.openai.com/v1',
+  }),
 };
 
 // ── Landing Page ──────────────────────────────────────────────────────
@@ -140,7 +192,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 <body>
   <div class="status"><span class="status-dot"></span>Online</div>
   <h1>Cloudflare API Proxy</h1>
-  <p class="subtitle">Transparent proxy for Telegram Bot API &amp; Discord REST API — bypasses geo-blocks via Cloudflare edge</p>
+  <p class="subtitle">Transparent proxy for Telegram, Discord, Anthropic &amp; OpenAI — bypasses geo-blocks via Cloudflare edge</p>
 
   <div class="cards">
     <!-- Telegram -->
@@ -197,6 +249,55 @@ const HTML_PAGE = `<!DOCTYPE html>
         <span class="comment">// Or Authorization header</span><br>
         <span class="method">GET</span> <span class="path">/dc/users/@me</span><br>
         <span class="path">Authorization: Bot {TOKEN}</span>
+      </div>
+    </div>
+
+    <!-- Anthropic -->
+    <div class="card">
+      <div class="card-header"><div class="card-icon">🧠</div><span class="card-title">Anthropic API</span></div>
+      <p class="card-desc">Полный доступ к Anthropic Messages API — прозрачный прокси к api.anthropic.com/v1.</p>
+      <div class="features">
+        <span class="feature-tag">/v1/messages</span>
+        <span class="feature-tag">SSE streaming</span>
+        <span class="feature-tag">x-api-key</span>
+        <span class="feature-tag">transparent</span>
+      </div>
+      <div class="endpoints">
+        <div class="section-title">Endpoints</div>
+        <div class="endpoint-row">
+          <span class="endpoint-method">ANY</span>
+          <span class="endpoint-path">/claude/<span class="param">&lt;path&gt;</span></span>
+        </div>
+      </div>
+      <div class="card-code">
+        <span class="comment">// Chat completion</span><br>
+        <span class="method">POST</span> <span class="path">/claude/messages</span><br>
+        <span class="path">x-api-key: {KEY}</span><br>
+        <span class="path">anthropic-version: 2023-06-01</span>
+      </div>
+    </div>
+
+    <!-- OpenAI -->
+    <div class="card">
+      <div class="card-header"><div class="card-icon">🤖</div><span class="card-title">OpenAI API</span></div>
+      <p class="card-desc">Полный доступ к OpenAI API — прозрачный прокси к api.openai.com/v1.</p>
+      <div class="features">
+        <span class="feature-tag">/v1/chat/completions</span>
+        <span class="feature-tag">SSE streaming</span>
+        <span class="feature-tag">Authorization Bearer</span>
+        <span class="feature-tag">transparent</span>
+      </div>
+      <div class="endpoints">
+        <div class="section-title">Endpoints</div>
+        <div class="endpoint-row">
+          <span class="endpoint-method">ANY</span>
+          <span class="endpoint-path">/openai/<span class="param">&lt;path&gt;</span></span>
+        </div>
+      </div>
+      <div class="card-code">
+        <span class="comment">// Chat completion</span><br>
+        <span class="method">POST</span> <span class="path">/openai/chat/completions</span><br>
+        <span class="path">Authorization: Bearer {KEY}</span>
       </div>
     </div>
   </div>
@@ -293,14 +394,14 @@ async function proxyRequest(request, svc, params, url) {
       body: body || undefined,
     });
 
-    // Forward response
+    // Forward response as a stream (not buffered) so SSE streaming
+    // (OpenAI / Anthropic stream=true) passes through untouched.
     const resHeaders = new Headers(res.headers);
     resHeaders.delete('content-encoding'); // CF handles this
     resHeaders.set('Access-Control-Allow-Origin', '*');
     resHeaders.set('Access-Control-Expose-Headers', '*');
 
-    const resBody = await res.arrayBuffer();
-    return new Response(resBody, {
+    return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,
       headers: resHeaders,
@@ -330,7 +431,8 @@ function stripHeaders(headers) {
 function cors(response) {
   response.headers.set('Access-Control-Allow-Origin', '*');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  response.headers.set('Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-request, X-Requested-With');
   response.headers.set('Access-Control-Max-Age', '86400');
   return response;
 }
